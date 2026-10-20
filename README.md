@@ -5,7 +5,7 @@ design). Two packages:
 
 | Assembly | What | Depends on |
 | --- | --- | --- |
-| `Node.Lib` | `NodeSocketLocation` (where an application's per-user socket and data folder are; `Resolve`, `TryGetNamed`, the `sun_path` limit, the lock path, the socket-connected HTTP handler, a listening probe) and `NodeLock` (one node per socket, cleared and bound only by its holder); `WebSocketEventQueue` (one event-stream client's bounded queue and its one sender: a write never waits, order holds, a stalled send ends and the client is dropped) | nothing |
+| `Node.Lib` | `NodeSocketLocation` (where an application's per-user socket and data folder are; `Resolve`, `TryGetNamed`, the `sun_path` limit, the lock path, the socket-connected HTTP handler, a listening probe) and `NodeLock` (one node per socket, cleared and bound only by its holder); `LocalOnlyMode` (a process binds nothing but loopback and its socket: an app's environment variable or `--local-only`, decided once); `WebSocketEventQueue` (one event-stream client's bounded queue and its one sender: a write never waits, order holds, a stalled send ends and the client is dropped) | nothing |
 | `Node.Lib.Hosting` | `NodeSocketHosting`: Kestrel on the socket the lock admits it to, owner-only on Unix; `NodeAccessGate`: seeing is free, commands need control (a node's `NodeAccessPolicy` says which route is open, a command or this machine's, and checks the grant), the socket passes untouched | ASP.NET Core |
 
 A client takes `Node.Lib` alone, so it never carries ASP.NET.
@@ -23,7 +23,7 @@ A client takes `Node.Lib` alone, so it never carries ASP.NET.
 
 ## Next
 
-The rest of the shared table in pilot v2's design: local-only mode, jobs, the notifications ring. (The grants'
+The rest of the shared table in pilot v2's design: jobs, the notifications ring. (The grants'
 file store is LAN.Lib's `LanGrantFile`.)
 
 ## Build and test
