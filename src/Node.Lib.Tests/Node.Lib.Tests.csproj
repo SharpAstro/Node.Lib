@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Node.Lib\Node.Lib.csproj" />
+    <ProjectReference Include="..\Node.Lib.Hosting\Node.Lib.Hosting.csproj" />
   </ItemGroup>
 
 </Project>
