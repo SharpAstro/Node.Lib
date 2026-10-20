@@ -1,0 +1,76 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Patch component is github.run_number. MAJOR.MINOR lives in the repo-root Directory.Build.props
+  # (VersionMajorMinor) and the build job reads it back, so it cannot drift from what the packages declare.
+  # 1.0: Node.Lib (NodeSocketLocation, NodeLock) and Node.Lib.Hosting (NodeSocketHosting), lifted out of
+  # tianwen's TianWen.Hosting and pilot's copy of it.
+  VERSION_REV: ${{ github.run_attempt }}
+  VERSION_HASH: +${{ github.sha }}
+  BUILD_CONF: Release
+  # The build job CAPTURES a dotnet invocation's stdout to resolve the version, so the SDK's
+  # first-run banner must not be able to land in it.
+  DOTNET_NOLOGO: 1
+
+jobs:
+  build:
+    # Both: the lock and the socket behave differently on Windows (exclusive open, the ACL) and Unix (flock, the file
+    # mode), and both are where the nodes run. Only the Linux job uploads the packages.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: 10.0.x
+    - name: Resolve version prefix
+      # Read the major.minor back from the one place it is written (Directory.Build.props) instead of
+      # restating it here. -getProperty only EVALUATES the file: nothing is built and no restore is
+      # needed, so this can run before restore. The value is CAPTURED, so nothing else may print to
+      # stdout: DOTNET_NOLOGO (workflow env) keeps the SDK first-run banner out, and the shape check
+      # makes anything unexpected, or a renamed property, fail the run rather than quietly publishing
+      # every package as ".<run>".
+      run: |
+        MM="$(dotnet msbuild Directory.Build.props -getProperty:VersionMajorMinor -nologo)"
+        case "$MM" in
+          [0-9]*.[0-9]*) ;;
+          *) echo "::error::VersionMajorMinor did not resolve from Directory.Build.props (got '$MM')"; exit 1 ;;
+        esac
+        echo "VERSION_PREFIX=${MM}.${{ github.run_number }}" >> "$GITHUB_ENV"
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build -c $BUILD_CONF --no-restore -p:Version=${VERSION_PREFIX}${VERSION_REV}${VERSION_HASH} -p:FileVersion=${VERSION_PREFIX}.${VERSION_REV} -p:ContinuousIntegrationBuild=true
+    - name: Test
+      run: dotnet test src/Node.Lib.Tests -c $BUILD_CONF --no-build --logger "console;verbosity=detailed"
+    - name: Upload NuGet package
+      if: runner.os == 'Linux'
+      uses: actions/upload-artifact@v7
+      with:
+        name: nuget-packages
+        path: '**/*.nupkg'
+        retention-days: 5
+
+  publish-nuget:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Download NuGet packages
+      uses: actions/download-artifact@v8
+      with:
+        name: nuget-packages
+    - name: Push NuGet package
+      run: dotnet nuget push **/*.nupkg -s nuget.org -k ${{ secrets.NUGET_API_KEY }} --skip-duplicate

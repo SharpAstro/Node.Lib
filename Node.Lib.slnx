@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Node.Lib/Node.Lib.csproj" />
+    <Project Path="src/Node.Lib.Hosting/Node.Lib.Hosting.csproj" />
+    <Project Path="src/Node.Lib.Tests/Node.Lib.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Node.Lib.Hosting</RootNamespace>
+    <PackageId>Node.Lib.Hosting</PackageId>
+    <Description>Node.Lib's node side: Kestrel on the Unix domain socket its NodeLock admits it to, owner-only on Unix. Apart from Node.Lib so a client never carries ASP.NET Core.</Description>
+    <PackageTags>Node;UnixDomainSocket;Kestrel;AspNetCore;LocalServer</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <!-- No version properties here: they derive from VersionMajorMinor in the repo-root Directory.Build.props, and CI
+         composes the package version from it. Bump it THERE. -->
+    <Authors>Sebastian Godelet</Authors>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/SharpAstro/Node.Lib.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="..\Node.Lib\Node.Lib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>
