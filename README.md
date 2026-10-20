@@ -5,8 +5,8 @@ design). Two packages:
 
 | Assembly | What | Depends on |
 | --- | --- | --- |
-| `Node.Lib` | `NodeSocketLocation` (where an application's per-user socket and data folder are; `Resolve`, `TryGetNamed`, the `sun_path` limit, the lock path, the socket-connected HTTP handler, a listening probe) and `NodeLock` (one node per socket, cleared and bound only by its holder) | nothing |
-| `Node.Lib.Hosting` | `NodeSocketHosting`: Kestrel on the socket the lock admits it to, owner-only on Unix | ASP.NET Core |
+| `Node.Lib` | `NodeSocketLocation` (where an application's per-user socket and data folder are; `Resolve`, `TryGetNamed`, the `sun_path` limit, the lock path, the socket-connected HTTP handler, a listening probe) and `NodeLock` (one node per socket, cleared and bound only by its holder); `CircularBuffer<T>` (a lock-free ring of the most recent items, with how many were ever added, so a client asks for only what it lacks: a notification feed, a job's last lines); `LocalOnlyMode` (a process binds nothing but loopback and its socket: an app's environment variable or `--local-only`, decided once); `WebSocketEventQueue` (one event-stream client's bounded queue and its one sender: a write never waits, order holds, a stalled send ends and the client is dropped) | nothing |
+| `Node.Lib.Hosting` | `NodeSocketHosting`: Kestrel on the socket the lock admits it to, owner-only on Unix; `NodeAccessGate`: seeing is free, commands need control (a node's `NodeAccessPolicy` says which route is open, a command or this machine's, and checks the grant), the socket passes untouched | ASP.NET Core |
 
 A client takes `Node.Lib` alone, so it never carries ASP.NET.
 
@@ -15,17 +15,18 @@ A client takes `Node.Lib` alone, so it never carries ASP.NET.
 - **pilot**: `Pilot.Contracts.NodeSocket` is pilot's names (`pilot2`, `PILOT_NODE_SOCKET`) over a
   `NodeSocketLocation`; the node takes the lock and hosting from here; `NodeHolder` says how a refused node asks the
   holder who it is.
-- **tianwen** (to move): `TianWen.Hosting.Contracts.Api.NodeSocket`, `TianWen.Hosting.NodeLock` and
-  `TianWen.Hosting.Extensions.NodeSocketHosting` are the originals these were lifted from. Its socket lives under its own
-  data root, which `NodeSocketLocation`'s `socketFolder` takes (`() => TianWenDataRoot.Directory.FullName`), and its
-  clients ask `TryGetNamed`, which is here too.
+- **tianwen**: `TianWen.Hosting.Contracts.Api.NodeSocket` is its names over a `NodeSocketLocation` under its own data
+  root (`() => TianWenDataRoot.Directory.FullName`); its clients ask `TryGetNamed`; the node takes the lock and hosting
+  from here.
+- Both nodes' `EventHub`s put each client's events on a `WebSocketEventQueue` and keep their own policy: pilot resumes a
+  dropped client from the last delta it applied, tianwen's resyncs by polling and keeps its two pools and presence.
 
 ## Next
 
-- pilot and tianwen take it through a `UseLocalNodeLib` switch (the org's sibling-source pattern).
-- Then the rest of the shared table in pilot v2's design: local-only mode, seeing-is-free / commands-need-control
-  (pilot's LAN gate over LAN.Lib's grants), the event broadcaster with a bounded queue per client, jobs, the
-  notifications ring.
+Jobs stay each node's own: tianwen's are in-process work holding a device or a kind (a second start joins or is
+refused), pilot's are processes queued by count and free memory. They share the model (a state, a step, an error, start
+and end), not code. (The grants'
+file store is LAN.Lib's `LanGrantFile`.)
 
 ## Build and test
 
