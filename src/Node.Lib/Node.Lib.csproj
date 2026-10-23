@@ -9,6 +9,7 @@
     <PackageTags>Node;UnixDomainSocket;Socket;Lock;LocalServer;IPC</PackageTags>
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <!-- No version properties here: they derive from VersionMajorMinor in the repo-root Directory.Build.props, and CI
          composes the package version from it. Bump it THERE. -->

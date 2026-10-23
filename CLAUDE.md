@@ -1,7 +1,9 @@
 # CLAUDE.md
 
 `Node.Lib` holds the pieces every per-user local node in SharpAstro shares with its clients; `Node.Lib.Hosting` its
-Kestrel side. See `README.md` for what is in each and who uses them (pilot, tianwen).
+Kestrel side (the socket host and `ListenOnNodeNetwork`, the local-only-aware TCP listen). `Node.Lib` also holds
+`DetachedProcess`, which starts a node so it outlives its client, and so needs `AllowUnsafeBlocks` for its Windows
+`CreateProcessW` call. See `README.md` for what is in each and who uses them (pilot, tianwen).
 
 ## Build & test
 
