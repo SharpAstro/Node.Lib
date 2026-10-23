@@ -7,7 +7,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace Node.Lib;
+namespace Node.Lib.Processes;
 
 public sealed partial class DetachedProcess
 {
