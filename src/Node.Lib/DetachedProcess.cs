@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Node.Lib;
+namespace Node.Lib.Processes;
 
 /// <summary>
 /// A process started so it outlives the one that started it: a node's keeper, which a client starts. On Windows it
