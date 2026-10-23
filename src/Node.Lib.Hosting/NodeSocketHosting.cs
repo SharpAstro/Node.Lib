@@ -19,6 +19,22 @@ public static class NodeSocketHosting
     }
 
     /// <summary>
+    /// Listens on every address at <paramref name="port"/>, but only when <paramref name="mode"/> lets the process bind
+    /// the network, so local-only is enforced where the bind happens (<see cref="LocalOnlyMode"/>). Returns whether it
+    /// listens: false means a local-only process bound nothing, and the node stays on its socket.
+    /// </summary>
+    public static bool ListenOnNodeNetwork(this KestrelServerOptions options, int port, LocalOnlyMode mode)
+    {
+        if (!mode.MayBindTheNetwork)
+        {
+            return false;
+        }
+
+        options.ListenAnyIP(port);
+        return true;
+    }
+
+    /// <summary>
     /// Once the node listens, makes its socket owner-only on Unix, where connecting takes write permission on the file
     /// and the umask alone would decide it. Windows keeps the folder's ACL, which the file inherits.
     /// </summary>
