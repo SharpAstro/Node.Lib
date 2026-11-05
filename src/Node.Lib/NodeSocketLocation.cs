@@ -126,12 +126,25 @@ public sealed class NodeSocketLocation(string folderName, string environmentVari
     /// Whether anything accepts a connection on <paramref name="socketPath"/>. False when there is no socket file, or
     /// only a stale one nothing listens on, and for a path too long to be a socket address at all.
     /// </summary>
+    /// <remarks>
+    /// The connect is bounded by <see cref="ListeningProbeBudget"/>. On Linux a connect to a socket whose listener has
+    /// stopped accepting (its backlog full, its accept loop starved) does not fail, it waits, and an unbounded probe then
+    /// held its caller for as long as the listener did: tianwen's client waited the whole of a test's 60 s on it, with
+    /// nothing logged on either side (tianwen #2000). A connect still pending at the budget is answered <c>true</c>: a
+    /// listener IS bound there, only busy, so a caller waiting for it goes on waiting until its own deadline.
+    /// </remarks>
     public static async Task<bool> IsListeningAsync(string socketPath, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        budget.CancelAfter(ListeningProbeBudget);
         try
         {
-            await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), cancellationToken).ConfigureAwait(false);
+            await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), budget.Token).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
             return true;
         }
         catch (Exception ex) when (ex is SocketException or ArgumentException)
@@ -139,6 +152,9 @@ public sealed class NodeSocketLocation(string folderName, string environmentVari
             return false;
         }
     }
+
+    /// <summary>How long <see cref="IsListeningAsync"/> waits for its connect before answering that something listens.</summary>
+    internal static TimeSpan ListeningProbeBudget { get; } = TimeSpan.FromSeconds(2);
 
     private string DefaultSocketFolder()
     {

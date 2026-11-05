@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Sockets;
 using Shouldly;
 using Xunit;
@@ -110,5 +111,54 @@ public sealed class NodeLibTests : IDisposable
         using var httpClient = new HttpClient(handler) { BaseAddress = NodeSocketLocation.BaseAddress };
         (await httpClient.GetStringAsync("/", ct)).ShouldBe("ok");
         await serving;
+    }
+
+    /// <summary>
+    /// A listener that stops accepting, its backlog full, holds a connect on Linux rather than refusing it. The probe still
+    /// answers, within its budget, and says something is there (tianwen #2000: an unbounded probe held a client for 60 s).
+    /// </summary>
+    [Fact(Timeout = 30_000)]
+    public async Task TheProbeAnswersWithinItsBudgetWhenTheListenerStopsAccepting()
+    {
+        var socketPath = Path.Combine(_folder, "full.sock");
+        var ct = TestContext.Current.CancellationToken;
+        using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        listener.Bind(new UnixDomainSocketEndPoint(socketPath));
+        listener.Listen(1);
+
+        // Fill the backlog: nothing ever accepts, so the later connects wait (Linux) or are refused (elsewhere).
+        using var fillers = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var held = new List<Socket>();
+        var filling = new List<Task>();
+        for (var i = 0; i < 8; i++)
+        {
+            var filler = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            held.Add(filler);
+            filling.Add(filler.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), fillers.Token).AsTask());
+        }
+        try
+        {
+            var started = Stopwatch.GetTimestamp();
+            var listening = await NodeSocketLocation.IsListeningAsync(socketPath, ct);
+            var took = Stopwatch.GetElapsedTime(started);
+
+            took.ShouldBeLessThan(NodeSocketLocation.ListeningProbeBudget + TimeSpan.FromSeconds(3));
+            if (OperatingSystem.IsLinux())
+            {
+                listening.ShouldBeTrue("a listener is bound there, only not accepting");
+            }
+        }
+        finally
+        {
+            await fillers.CancelAsync();
+            foreach (var task in filling)
+            {
+                try { await task; } catch (Exception ex) when (ex is OperationCanceledException or SocketException) { }
+            }
+            foreach (var socket in held)
+            {
+                socket.Dispose();
+            }
+        }
     }
 }
